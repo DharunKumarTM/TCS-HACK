@@ -28,7 +28,9 @@ import {
   TrendingUp,
   Lock,
   Activity,
-  ArrowUpRight
+  ArrowUpRight,
+  Eye,
+  Award
 } from "lucide-react";
 import { api } from "@/lib/api";
 import {
@@ -65,6 +67,8 @@ export default function ArchitecturePage() {
 
   // Modals & UI States
   const [evolutionView, setEvolutionView] = useState<"cards" | "side_by_side" | "old_diagram" | "new_diagram" | "matrix">("cards");
+  const [forceShowComparison, setForceShowComparison] = useState(false);
+  const [showLegacyArchive, setShowLegacyArchive] = useState(false);
   const [expandedStackIdx, setExpandedStackIdx] = useState<number | null>(0);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [customizeModalOpen, setCustomizeModalOpen] = useState(false);
@@ -130,6 +134,31 @@ export default function ArchitecturePage() {
       setConfirmedAt(new Date().toISOString());
       setArchitectNotes(notesInput);
       setConfirmModalOpen(false);
+      setForceShowComparison(false);
+      setActiveTab("evolution");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to confirm architecture: " + err);
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
+  const handleQuickConfirm = async () => {
+    if (!project) return;
+    setActionInProgress(true);
+    try {
+      await api.confirmArchitecture(project.id, {
+        action: "confirm",
+        architect_name: architectNameInput || "Lead Enterprise Architect",
+        notes: "Target architecture formally confirmed and adopted as the active system architecture.",
+      });
+      setConfirmationStatus("Confirmed");
+      setConfirmedBy(architectNameInput || "Lead Enterprise Architect");
+      setConfirmedAt(new Date().toISOString());
+      setArchitectNotes("Target architecture formally confirmed and adopted as the active system architecture.");
+      setForceShowComparison(false);
+      setActiveTab("evolution");
     } catch (err) {
       console.error(err);
       alert("Failed to confirm architecture: " + err);
@@ -179,8 +208,13 @@ export default function ArchitecturePage() {
     }
   };
 
+  const isConfirmed = confirmationStatus === "Confirmed";
+
   const tabs = [
-    { id: "evolution", label: "🏛️ Architecture Evolution: Old vs New" },
+    {
+      id: "evolution",
+      label: isConfirmed && !forceShowComparison ? "🏆 Active Architecture (The One)" : "🏛️ Architecture Evolution: Old vs New",
+    },
     { id: "tech_stacks", label: "⚡ Recommended Tech Stacks & Trade-Offs" },
     { id: "canvas", label: "Interactive Canvas (React Flow)" },
     { id: "high_level", label: "Target High-Level (Mermaid)" },
@@ -205,9 +239,11 @@ export default function ArchitecturePage() {
                 <Network className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white tracking-tight">Architecture Studio & Tech Stack Intelligence</h1>
+                <h1 className="text-xl font-bold text-white tracking-tight">Architecture Studio & Governance Gate</h1>
                 <p className="text-xs text-slate-400">
-                  Evidence-driven software decomposition, legacy-to-target evolution, and human-in-the-loop change confirmation.
+                  {isConfirmed
+                    ? "Target Architecture adopted as the single active production architecture for this system."
+                    : "Evidence-driven software decomposition, legacy-to-target evolution, and human-in-the-loop change confirmation."}
                 </p>
               </div>
             </div>
@@ -216,8 +252,8 @@ export default function ArchitecturePage() {
             <div className="flex items-center space-x-2">
               <span className="text-xs text-slate-400 font-medium">Architecture Gate:</span>
               <span
-                className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center space-x-1.5 ${confirmationStatus === "Confirmed"
-                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
+                className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center space-x-1.5 ${isConfirmed
+                    ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-sm shadow-emerald-950/40"
                     : confirmationStatus === "Customized"
                       ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-400"
                       : confirmationStatus === "Revisions Requested"
@@ -225,8 +261,8 @@ export default function ArchitecturePage() {
                         : "bg-blue-500/15 border-blue-500/40 text-blue-400 animate-pulse"
                   }`}
               >
-                {confirmationStatus === "Confirmed" ? (
-                  <CheckCircle2 className="w-3.5 h-3.5" />
+                {isConfirmed ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                 ) : confirmationStatus === "Customized" ? (
                   <Sliders className="w-3.5 h-3.5" />
                 ) : confirmationStatus === "Revisions Requested" ? (
@@ -234,25 +270,33 @@ export default function ArchitecturePage() {
                 ) : (
                   <Sparkles className="w-3.5 h-3.5" />
                 )}
-                <span>{confirmationStatus}</span>
+                <span>{isConfirmed ? "Live Active Architecture (The One)" : confirmationStatus}</span>
               </span>
             </div>
           </div>
 
           {/* Style Justification Card */}
-          <div className="p-4 rounded-xl bg-[#0a0f1d] border border-cyan-500/30 text-xs text-slate-300 leading-relaxed shadow-lg">
-            <div className="font-bold text-cyan-400 mb-1 flex items-center space-x-2">
-              <Zap className="w-4 h-4" />
-              <span>Target Architecture Style: {newArch?.style || "Sovereign Hybrid Architecture with Event-Driven Ledger Settlement"}</span>
+          <div
+            className={`p-4 rounded-xl border text-xs text-slate-300 leading-relaxed shadow-lg transition-all ${isConfirmed
+                ? "bg-gradient-to-r from-emerald-950/30 via-[#0a0f1d] to-[#080c14] border-emerald-500/40"
+                : "bg-[#0a0f1d] border-cyan-500/30"
+              }`}
+          >
+            <div className={`font-bold mb-1 flex items-center space-x-2 ${isConfirmed ? "text-emerald-400" : "text-cyan-400"}`}>
+              {isConfirmed ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Zap className="w-4 h-4" />}
+              <span>
+                {isConfirmed ? "Active Production Architecture: " : "Target Prescribed Architecture: "}
+                {newArch?.name || "SmartBank 2.0 Sovereign Hybrid Architecture"}
+              </span>
             </div>
-            <p>{styleDesc || newArch?.description || "Combines stateless domestic cloud edge auto-scaling with an isolated on-premises Tier-IV private datacenter for core sovereign banking ledger and HSM cryptographic keys."}</p>
+            <p>{newArch?.description || styleDesc}</p>
           </div>
         </div>
 
         {/* Change Confirmation Action Banner */}
         <div
-          className={`p-5 rounded-2xl border transition-all ${confirmationStatus === "Confirmed"
-              ? "bg-gradient-to-r from-emerald-950/40 via-[#0a0f1d] to-[#080c14] border-emerald-500/40"
+          className={`p-5 rounded-2xl border transition-all ${isConfirmed
+              ? "bg-gradient-to-r from-emerald-950/50 via-[#0a0f1d] to-[#080c14] border-emerald-500/50 shadow-xl shadow-emerald-950/20"
               : confirmationStatus === "Customized"
                 ? "bg-gradient-to-r from-cyan-950/40 via-[#0a0f1d] to-[#080c14] border-cyan-500/40"
                 : confirmationStatus === "Revisions Requested"
@@ -263,10 +307,10 @@ export default function ArchitecturePage() {
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-1.5 max-w-3xl">
               <div className="flex items-center space-x-2">
-                {confirmationStatus === "Confirmed" ? (
+                {isConfirmed ? (
                   <>
                     <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                    <span className="text-sm font-bold text-emerald-400">Target Architecture Confirmed & Signed Off</span>
+                    <span className="text-sm font-bold text-emerald-400">Target Architecture Confirmed — Now Active As The Sole System Architecture</span>
                   </>
                 ) : confirmationStatus === "Customized" ? (
                   <>
@@ -286,25 +330,54 @@ export default function ArchitecturePage() {
                 )}
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                {confirmationStatus === "Confirmed"
-                  ? `Signed off by ${confirmedBy || "Lead Architect"} on ${confirmedAt ? new Date(confirmedAt).toLocaleDateString() : "Today"}. All 4 Architecture Decision Records (ADRs) have been formally Accepted for production.`
+                {isConfirmed
+                  ? `Signed off by ${confirmedBy || "Lead Architect"} on ${confirmedAt ? new Date(confirmedAt).toLocaleDateString() : "Today"}. The target architecture is now the active baseline. All 4 Architecture Decision Records (ADRs) have been formally Accepted.`
                   : confirmationStatus === "Customized"
                     ? `Configured with custom overrides by ${confirmedBy || "Lead Architect"}. Inspect modified layers and alternatives below.`
                     : confirmationStatus === "Revisions Requested"
                       ? `Notes: "${architectNotes || "Requested structural adjustments."}" Review feedback and update specifications.`
-                      : "The AI agent team has synthesized the target architecture, component breakdown, and recommended technology stack with alternatives. Review the Old vs New evolution below and formally confirm to adopt this architecture."}
+                      : "The AI agent team has synthesized the target architecture, component breakdown, and recommended technology stack. Confirm below to adopt this as the active architecture."}
               </p>
             </div>
 
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center gap-2.5">
-              <button
-                onClick={() => setConfirmModalOpen(true)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-950/40 flex items-center space-x-1.5 transition active:scale-95"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{confirmationStatus === "Confirmed" ? "Re-Confirm Architecture" : "Confirm & Sign-Off Architecture"}</span>
-              </button>
+              {!isConfirmed ? (
+                <>
+                  <button
+                    onClick={handleQuickConfirm}
+                    disabled={actionInProgress}
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-950/40 flex items-center space-x-1.5 transition active:scale-95 disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{actionInProgress ? "Adopting..." : "Confirm & Adopt New Architecture"}</span>
+                  </button>
+                  <button
+                    onClick={() => setConfirmModalOpen(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#131d33] hover:bg-[#1a2744] border border-[#2a3b5c] text-slate-300 hover:text-white flex items-center space-x-1.5 transition active:scale-95"
+                  >
+                    <span>Formal Sign-Off Modal</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setForceShowComparison(!forceShowComparison)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#131d33] hover:bg-[#1a2744] border border-cyan-500/40 text-cyan-300 flex items-center space-x-1.5 transition active:scale-95"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>{forceShowComparison ? "View Active Architecture (The One)" : "Compare with Legacy Baseline"}</span>
+                  </button>
+                  <button
+                    onClick={() => setConfirmModalOpen(true)}
+                    className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#131d33] hover:bg-[#1a2744] border border-[#2a3b5c] text-emerald-400 flex items-center space-x-1.5 transition active:scale-95"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Update Sign-Off Directives</span>
+                  </button>
+                </>
+              )}
+
               <button
                 onClick={() => setCustomizeModalOpen(true)}
                 className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#131d33] hover:bg-[#1a2744] border border-[#2a3b5c] text-cyan-300 flex items-center space-x-1.5 transition active:scale-95"
@@ -341,265 +414,375 @@ export default function ArchitecturePage() {
 
         {/* Dynamic Tab Views */}
         <div className="min-h-[550px] space-y-6">
-          {/* TAB 1: ARCHITECTURE EVOLUTION: OLD VS NEW */}
+          {/* TAB 1: ARCHITECTURE EVOLUTION / ACTIVE ARCHITECTURE */}
           {activeTab === "evolution" && (
-            <div className="space-y-6">
-              {/* Sub-view Navigation */}
-              <div className="flex items-center justify-between border-b border-[#1e293b] pb-3">
-                <div className="flex items-center space-x-2">
-                  <History className="w-4 h-4 text-cyan-400" />
-                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">Evolutionary Comparison Modes:</span>
+            isConfirmed && !forceShowComparison ? (
+              /* THE ONE: CONFIRMED ACTIVE SYSTEM ARCHITECTURE */
+              <div className="space-y-6 animate-in fade-in duration-300">
+                {/* Active Architecture Hero Card */}
+                <div className="bg-gradient-to-br from-[#0a1526] via-[#0a0f1d] to-[#080c14] border-2 border-emerald-500/50 rounded-2xl p-7 shadow-2xl relative overflow-hidden space-y-6">
+                  <div className="absolute top-0 right-0 px-4 py-1.5 bg-emerald-500/25 border-b border-l border-emerald-500/50 rounded-bl-xl text-xs font-bold text-emerald-400 uppercase tracking-widest flex items-center space-x-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Active System Architecture (The One)</span>
+                  </div>
+
+                  <div className="space-y-2 max-w-4xl">
+                    <div className="flex items-center space-x-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+                      <Award className="w-4 h-4 text-emerald-400" />
+                      <span>Current Active Production Architecture</span>
+                    </div>
+                    <h2 className="text-2xl font-bold text-white tracking-tight">{newArch?.name || "SmartBank 2.0 Sovereign Hybrid Architecture"}</h2>
+                    <div className="text-sm font-mono text-cyan-300 font-semibold">{newArch?.style}</div>
+                    <p className="text-xs text-slate-300 leading-relaxed pt-1">{newArch?.description}</p>
+                  </div>
+
+                  {/* Active Performance Metrics Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-[#0f172a]/90 p-3 rounded-xl border border-emerald-500/30">
+                      <div className="text-[10px] text-slate-400 uppercase font-semibold">P99 Latency SLA</div>
+                      <div className="text-base font-mono font-bold text-emerald-400 mt-0.5">{newArch?.metrics?.latency_p99 || "< 180 ms"}</div>
+                      <div className="text-[10px] text-emerald-500/80 mt-0.5 font-medium">Guaranteed Under Peak</div>
+                    </div>
+                    <div className="bg-[#0f172a]/90 p-3 rounded-xl border border-emerald-500/30">
+                      <div className="text-[10px] text-slate-400 uppercase font-semibold">Throughput Scale</div>
+                      <div className="text-base font-mono font-bold text-emerald-400 mt-0.5">{newArch?.metrics?.throughput_tps || "100,000+ TPS"}</div>
+                      <div className="text-[10px] text-emerald-500/80 mt-0.5 font-medium">Elastic Pod Autoscaling</div>
+                    </div>
+                    <div className="bg-[#0f172a]/90 p-3 rounded-xl border border-emerald-500/30">
+                      <div className="text-[10px] text-slate-400 uppercase font-semibold">High Availability</div>
+                      <div className="text-base font-mono font-bold text-emerald-400 mt-0.5">{newArch?.metrics?.availability || "99.99%"}</div>
+                      <div className="text-[10px] text-emerald-500/80 mt-0.5 font-medium">Multi-AZ Active-Active</div>
+                    </div>
+                    <div className="bg-[#0f172a]/90 p-3 rounded-xl border border-emerald-500/30">
+                      <div className="text-[10px] text-slate-400 uppercase font-semibold">Disaster Recovery</div>
+                      <div className="text-base font-mono font-bold text-emerald-400 mt-0.5">{newArch?.metrics?.rpo_rto || "RPO: 0 | RTO: < 15s"}</div>
+                      <div className="text-[10px] text-emerald-500/80 mt-0.5 font-medium">Zero Financial Data Loss</div>
+                    </div>
+                  </div>
+
+                  {/* Key Capabilities */}
+                  <div className="p-4 rounded-xl bg-[#080c14]/80 border border-[#1e293b] space-y-2">
+                    <div className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center space-x-1.5">
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Active Architectural Capabilities (Approved by {confirmedBy || "Lead Architect"}):</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-200">
+                      {(newArch?.characteristics || []).map((ch, idx) => (
+                        <div key={idx} className="flex items-start space-x-2">
+                          <span className="text-emerald-400 font-bold mt-0.5">✓</span>
+                          <span>{ch}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-1.5 bg-[#0f172a] p-1 rounded-lg border border-[#1e293b]">
+
+                {/* Embedded Active Architecture Topology Diagram */}
+                <div className="bg-[#0a0f1d] border border-cyan-500/30 rounded-2xl p-5 shadow-xl space-y-3">
+                  <div className="flex items-center justify-between border-b border-[#1e293b] pb-3">
+                    <div className="flex items-center space-x-2">
+                      <Network className="w-4 h-4 text-cyan-400" />
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">Active System Topology Diagram (Confirmed Target)</span>
+                    </div>
+                    <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-semibold">
+                      Production Live
+                    </span>
+                  </div>
+                  <MermaidViewer chart={newArch?.mermaid_diagram || ""} title="Active Confirmed Architecture" />
+                </div>
+
+                {/* Collapsible Replaced Legacy Architecture Section */}
+                <div className="bg-[#0a0f1d] border border-[#1e293b] rounded-2xl p-4 shadow-lg">
                   <button
-                    onClick={() => setEvolutionView("cards")}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition ${evolutionView === "cards" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-white"
-                      }`}
+                    onClick={() => setShowLegacyArchive(!showLegacyArchive)}
+                    className="flex items-center justify-between w-full text-xs font-semibold text-slate-400 hover:text-slate-200 transition"
                   >
-                    Side-by-Side Cards
+                    <div className="flex items-center space-x-2">
+                      <History className="w-4 h-4 text-slate-500" />
+                      <span>Historical Archive: View Decommissioned Legacy Baseline & Migration Delta</span>
+                    </div>
+                    {showLegacyArchive ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </button>
-                  <button
-                    onClick={() => setEvolutionView("matrix")}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition ${evolutionView === "matrix" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-white"
-                      }`}
-                  >
-                    Metrics Delta Matrix
-                  </button>
-                  <button
-                    onClick={() => setEvolutionView("side_by_side")}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition ${evolutionView === "side_by_side" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-white"
-                      }`}
-                  >
-                    Dual Diagrams (Split View)
-                  </button>
-                  <button
-                    onClick={() => setEvolutionView("old_diagram")}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition ${evolutionView === "old_diagram" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-white"
-                      }`}
-                  >
-                    Old Monolith Diagram
-                  </button>
-                  <button
-                    onClick={() => setEvolutionView("new_diagram")}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition ${evolutionView === "new_diagram" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-white"
-                      }`}
-                  >
-                    New Target Diagram
-                  </button>
+
+                  {showLegacyArchive && (
+                    <div className="pt-4 mt-3 border-t border-[#1e293b] space-y-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="bg-[#080c14] border border-rose-950/60 rounded-xl p-4 space-y-2">
+                          <div className="text-[11px] font-bold text-rose-400 uppercase">Decommissioned Legacy Baseline</div>
+                          <div className="text-xs font-bold text-white">{oldArch?.name}</div>
+                          <div className="text-[11px] text-slate-400">{oldArch?.description}</div>
+                        </div>
+                        <div className="bg-[#080c14] border border-[#1e293b] rounded-xl p-4 space-y-2">
+                          <div className="text-[11px] font-bold text-slate-400 uppercase">Migration Improvement Matrix</div>
+                          <div className="text-[11px] text-slate-300">
+                            Latency reduced by 13.3x, throughput scaled by 83.3x, and 98% downtime reduction achieved.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {/* Mode 1: Cards View */}
-              {evolutionView === "cards" && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* OLD ARCHITECTURE CARD */}
-                  <div className="bg-[#0a0f1d] border border-rose-900/40 rounded-2xl p-6 space-y-5 shadow-xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 px-4 py-1.5 bg-rose-500/20 border-b border-l border-rose-500/40 rounded-bl-xl text-[11px] font-bold text-rose-400 uppercase tracking-widest">
-                      Legacy Baseline (v1.x)
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2 text-rose-400 text-xs font-bold uppercase tracking-wider">
-                        <History className="w-3.5 h-3.5" />
-                        <span>Baseline State</span>
-                      </div>
-                      <h2 className="text-lg font-bold text-white">{oldArch?.name || "SmartBank 1.0 Legacy Monolith"}</h2>
-                      <div className="text-xs font-mono text-rose-300">{oldArch?.style}</div>
-                    </div>
-
-                    <p className="text-xs text-slate-300 leading-relaxed bg-[#0f172a]/60 p-3.5 rounded-xl border border-rose-950/60">
-                      {oldArch?.description}
-                    </p>
-
-                    {/* Key Bottlenecks / Flaws */}
-                    <div className="space-y-2">
-                      <div className="text-xs font-bold text-rose-400 uppercase tracking-wider">Key Flaws & Structural Limits:</div>
-                      <ul className="space-y-1.5 text-xs text-slate-300">
-                        {(oldArch?.characteristics || []).map((ch, idx) => (
-                          <li key={idx} className="flex items-start space-x-2">
-                            <span className="text-rose-400 font-bold mt-0.5">•</span>
-                            <span>{ch}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Baseline Metrics Grid */}
-                    <div className="pt-2 border-t border-[#1e293b] space-y-2">
-                      <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Baseline Performance Profile:</div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-[#0f172a] p-2.5 rounded-lg border border-rose-950/80">
-                          <div className="text-[10px] text-slate-400">P99 Latency</div>
-                          <div className="font-mono font-bold text-rose-400">{oldArch?.metrics?.latency_p99 || "2,400 ms"}</div>
-                        </div>
-                        <div className="bg-[#0f172a] p-2.5 rounded-lg border border-rose-950/80">
-                          <div className="text-[10px] text-slate-400">Throughput Ceiling</div>
-                          <div className="font-mono font-bold text-rose-400">{oldArch?.metrics?.throughput_tps || "1,200 TPS"}</div>
-                        </div>
-                        <div className="bg-[#0f172a] p-2.5 rounded-lg border border-rose-950/80">
-                          <div className="text-[10px] text-slate-400">Availability SLA</div>
-                          <div className="font-mono font-bold text-rose-400">{oldArch?.metrics?.availability || "99.5% (~44h down)"}</div>
-                        </div>
-                        <div className="bg-[#0f172a] p-2.5 rounded-lg border border-rose-950/80">
-                          <div className="text-[10px] text-slate-400">Disaster Recovery</div>
-                          <div className="font-mono font-bold text-rose-400">{oldArch?.metrics?.rpo_rto || "RPO: 4h | RTO: 2h"}</div>
-                        </div>
-                      </div>
-                    </div>
+            ) : (
+              /* BEFORE CONFIRMATION OR WHEN COMPARISON REQUESTED */
+              <div className="space-y-6">
+                {/* Sub-view Navigation */}
+                <div className="flex items-center justify-between border-b border-[#1e293b] pb-3">
+                  <div className="flex items-center space-x-2">
+                    <History className="w-4 h-4 text-cyan-400" />
+                    <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">Evolutionary Comparison Modes:</span>
                   </div>
-
-                  {/* NEW TARGET ARCHITECTURE CARD */}
-                  <div className="bg-[#0a0f1d] border border-cyan-500/40 rounded-2xl p-6 space-y-5 shadow-xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 px-4 py-1.5 bg-cyan-500/20 border-b border-l border-cyan-500/40 rounded-bl-xl text-[11px] font-bold text-cyan-400 uppercase tracking-widest">
-                      Target Prescribed (v2.0)
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2 text-cyan-400 text-xs font-bold uppercase tracking-wider">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Prescribed Target State</span>
-                      </div>
-                      <h2 className="text-lg font-bold text-white">{newArch?.name || "SmartBank 2.0 Sovereign Hybrid Architecture"}</h2>
-                      <div className="text-xs font-mono text-cyan-300">{newArch?.style}</div>
-                    </div>
-
-                    <p className="text-xs text-slate-300 leading-relaxed bg-[#0f172a]/60 p-3.5 rounded-xl border border-cyan-950/60">
-                      {newArch?.description}
-                    </p>
-
-                    {/* Key Innovations */}
-                    <div className="space-y-2">
-                      <div className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Key Architectural Innovations:</div>
-                      <ul className="space-y-1.5 text-xs text-slate-300">
-                        {(newArch?.characteristics || []).map((ch, idx) => (
-                          <li key={idx} className="flex items-start space-x-2">
-                            <span className="text-cyan-400 font-bold mt-0.5">✓</span>
-                            <span>{ch}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Target Metrics Grid */}
-                    <div className="pt-2 border-t border-[#1e293b] space-y-2">
-                      <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Target Performance Profile:</div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-[#0f172a] p-2.5 rounded-lg border border-cyan-950/80">
-                          <div className="text-[10px] text-slate-400">P99 Latency SLA</div>
-                          <div className="font-mono font-bold text-emerald-400">{newArch?.metrics?.latency_p99 || "< 180 ms"}</div>
-                        </div>
-                        <div className="bg-[#0f172a] p-2.5 rounded-lg border border-cyan-950/80">
-                          <div className="text-[10px] text-slate-400">Throughput Scale</div>
-                          <div className="font-mono font-bold text-emerald-400">{newArch?.metrics?.throughput_tps || "100,000+ TPS"}</div>
-                        </div>
-                        <div className="bg-[#0f172a] p-2.5 rounded-lg border border-cyan-950/80">
-                          <div className="text-[10px] text-slate-400">Target Availability</div>
-                          <div className="font-mono font-bold text-emerald-400">{newArch?.metrics?.availability || "99.99% (< 52m down)"}</div>
-                        </div>
-                        <div className="bg-[#0f172a] p-2.5 rounded-lg border border-cyan-950/80">
-                          <div className="text-[10px] text-slate-400">Disaster Recovery SLA</div>
-                          <div className="font-mono font-bold text-emerald-400">{newArch?.metrics?.rpo_rto || "RPO: 0 | RTO: < 15s"}</div>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="flex items-center space-x-1.5 bg-[#0f172a] p-1 rounded-lg border border-[#1e293b]">
+                    <button
+                      onClick={() => setEvolutionView("cards")}
+                      className={`px-2.5 py-1 rounded text-xs font-medium transition ${evolutionView === "cards" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-white"
+                        }`}
+                    >
+                      Side-by-Side Cards
+                    </button>
+                    <button
+                      onClick={() => setEvolutionView("matrix")}
+                      className={`px-2.5 py-1 rounded text-xs font-medium transition ${evolutionView === "matrix" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-white"
+                        }`}
+                    >
+                      Metrics Delta Matrix
+                    </button>
+                    <button
+                      onClick={() => setEvolutionView("side_by_side")}
+                      className={`px-2.5 py-1 rounded text-xs font-medium transition ${evolutionView === "side_by_side" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-white"
+                        }`}
+                    >
+                      Dual Diagrams (Split View)
+                    </button>
+                    <button
+                      onClick={() => setEvolutionView("old_diagram")}
+                      className={`px-2.5 py-1 rounded text-xs font-medium transition ${evolutionView === "old_diagram" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-white"
+                        }`}
+                    >
+                      Old Monolith Diagram
+                    </button>
+                    <button
+                      onClick={() => setEvolutionView("new_diagram")}
+                      className={`px-2.5 py-1 rounded text-xs font-medium transition ${evolutionView === "new_diagram" ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-white"
+                        }`}
+                    >
+                      New Target Diagram
+                    </button>
                   </div>
                 </div>
-              )}
 
-              {/* Mode 2: Metrics Delta Matrix */}
-              {evolutionView === "matrix" && (
-                <div className="bg-[#0a0f1d] border border-[#1e293b] rounded-2xl overflow-hidden shadow-xl">
-                  <div className="p-4 border-b border-[#1e293b] flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-bold text-white">Architectural Evolution & Performance Delta Matrix</h3>
-                      <p className="text-xs text-slate-400">Direct dimension-by-dimension comparison between Legacy Baseline and Target Prescribed Architecture.</p>
+                {/* Mode 1: Cards View */}
+                {evolutionView === "cards" && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* OLD ARCHITECTURE CARD */}
+                    <div className="bg-[#0a0f1d] border border-rose-900/40 rounded-2xl p-6 space-y-5 shadow-xl relative overflow-hidden">
+                      <div className="absolute top-0 right-0 px-4 py-1.5 bg-rose-500/20 border-b border-l border-rose-500/40 rounded-bl-xl text-[11px] font-bold text-rose-400 uppercase tracking-widest">
+                        Legacy Baseline (v1.x)
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2 text-rose-400 text-xs font-bold uppercase tracking-wider">
+                          <History className="w-3.5 h-3.5" />
+                          <span>Baseline State</span>
+                        </div>
+                        <h2 className="text-lg font-bold text-white">{oldArch?.name || "SmartBank 1.0 Legacy Monolith"}</h2>
+                        <div className="text-xs font-mono text-rose-300">{oldArch?.style}</div>
+                      </div>
+
+                      <p className="text-xs text-slate-300 leading-relaxed bg-[#0f172a]/60 p-3.5 rounded-xl border border-rose-950/60">
+                        {oldArch?.description}
+                      </p>
+
+                      {/* Key Bottlenecks / Flaws */}
+                      <div className="space-y-2">
+                        <div className="text-xs font-bold text-rose-400 uppercase tracking-wider">Key Flaws & Structural Limits:</div>
+                        <ul className="space-y-1.5 text-xs text-slate-300">
+                          {(oldArch?.characteristics || []).map((ch, idx) => (
+                            <li key={idx} className="flex items-start space-x-2">
+                              <span className="text-rose-400 font-bold mt-0.5">•</span>
+                              <span>{ch}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Baseline Metrics Grid */}
+                      <div className="pt-2 border-t border-[#1e293b] space-y-2">
+                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Baseline Performance Profile:</div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-[#0f172a] p-2.5 rounded-lg border border-rose-950/80">
+                            <div className="text-[10px] text-slate-400">P99 Latency</div>
+                            <div className="font-mono font-bold text-rose-400">{oldArch?.metrics?.latency_p99 || "2,400 ms"}</div>
+                          </div>
+                          <div className="bg-[#0f172a] p-2.5 rounded-lg border border-rose-950/80">
+                            <div className="text-[10px] text-slate-400">Throughput Ceiling</div>
+                            <div className="font-mono font-bold text-rose-400">{oldArch?.metrics?.throughput_tps || "1,200 TPS"}</div>
+                          </div>
+                          <div className="bg-[#0f172a] p-2.5 rounded-lg border border-rose-950/80">
+                            <div className="text-[10px] text-slate-400">Availability SLA</div>
+                            <div className="font-mono font-bold text-rose-400">{oldArch?.metrics?.availability || "99.5% (~44h down)"}</div>
+                          </div>
+                          <div className="bg-[#0f172a] p-2.5 rounded-lg border border-rose-950/80">
+                            <div className="text-[10px] text-slate-400">Disaster Recovery</div>
+                            <div className="font-mono font-bold text-rose-400">{oldArch?.metrics?.rpo_rto || "RPO: 4h | RTO: 2h"}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* NEW TARGET ARCHITECTURE CARD */}
+                    <div className="bg-[#0a0f1d] border border-cyan-500/40 rounded-2xl p-6 space-y-5 shadow-xl relative overflow-hidden">
+                      <div className="absolute top-0 right-0 px-4 py-1.5 bg-cyan-500/20 border-b border-l border-cyan-500/40 rounded-bl-xl text-[11px] font-bold text-cyan-400 uppercase tracking-widest">
+                        Target Prescribed (v2.0)
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2 text-cyan-400 text-xs font-bold uppercase tracking-wider">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Prescribed Target State</span>
+                        </div>
+                        <h2 className="text-lg font-bold text-white">{newArch?.name || "SmartBank 2.0 Sovereign Hybrid Architecture"}</h2>
+                        <div className="text-xs font-mono text-cyan-300">{newArch?.style}</div>
+                      </div>
+
+                      <p className="text-xs text-slate-300 leading-relaxed bg-[#0f172a]/60 p-3.5 rounded-xl border border-cyan-950/60">
+                        {newArch?.description}
+                      </p>
+
+                      {/* Key Innovations */}
+                      <div className="space-y-2">
+                        <div className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Key Architectural Innovations:</div>
+                        <ul className="space-y-1.5 text-xs text-slate-300">
+                          {(newArch?.characteristics || []).map((ch, idx) => (
+                            <li key={idx} className="flex items-start space-x-2">
+                              <span className="text-cyan-400 font-bold mt-0.5">✓</span>
+                              <span>{ch}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Target Metrics Grid */}
+                      <div className="pt-2 border-t border-[#1e293b] space-y-2">
+                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Target Performance Profile:</div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-[#0f172a] p-2.5 rounded-lg border border-cyan-950/80">
+                            <div className="text-[10px] text-slate-400">P99 Latency SLA</div>
+                            <div className="font-mono font-bold text-emerald-400">{newArch?.metrics?.latency_p99 || "< 180 ms"}</div>
+                          </div>
+                          <div className="bg-[#0f172a] p-2.5 rounded-lg border border-cyan-950/80">
+                            <div className="text-[10px] text-slate-400">Throughput Scale</div>
+                            <div className="font-mono font-bold text-emerald-400">{newArch?.metrics?.throughput_tps || "100,000+ TPS"}</div>
+                          </div>
+                          <div className="bg-[#0f172a] p-2.5 rounded-lg border border-cyan-950/80">
+                            <div className="text-[10px] text-slate-400">Target Availability</div>
+                            <div className="font-mono font-bold text-emerald-400">{newArch?.metrics?.availability || "99.99% (< 52m down)"}</div>
+                          </div>
+                          <div className="bg-[#0f172a] p-2.5 rounded-lg border border-cyan-950/80">
+                            <div className="text-[10px] text-slate-400">Disaster Recovery SLA</div>
+                            <div className="font-mono font-bold text-emerald-400">{newArch?.metrics?.rpo_rto || "RPO: 0 | RTO: < 15s"}</div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-[#0f172a] border-b border-[#1e293b] text-slate-400 uppercase tracking-wider font-semibold">
-                          <th className="py-3 px-4">Architectural Dimension</th>
-                          <th className="py-3 px-4 text-rose-400">Legacy Baseline (Old)</th>
-                          <th className="py-3 px-4 text-cyan-400">Target Prescribed (New)</th>
-                          <th className="py-3 px-4 text-emerald-400">Improvement Delta</th>
-                          <th className="py-3 px-4">Impact</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#1e293b] text-slate-200">
-                        {matrix.map((row, idx) => (
-                          <tr key={idx} className="hover:bg-[#11192e] transition">
-                            <td className="py-3.5 px-4 font-bold text-white">{row.dimension}</td>
-                            <td className="py-3.5 px-4 font-mono text-rose-300/90">{row.legacy}</td>
-                            <td className="py-3.5 px-4 font-mono font-semibold text-cyan-300">{row.target}</td>
-                            <td className="py-3.5 px-4 font-mono font-bold text-emerald-400">
-                              <span className="flex items-center space-x-1">
-                                <TrendingUp className="w-3.5 h-3.5" />
-                                <span>{row.delta}</span>
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${row.impact === "Critical"
-                                    ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                                    : row.impact === "High"
-                                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                                      : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                                  }`}
-                              >
-                                {row.impact}
-                              </span>
-                            </td>
+                )}
+
+                {/* Mode 2: Metrics Delta Matrix */}
+                {evolutionView === "matrix" && (
+                  <div className="bg-[#0a0f1d] border border-[#1e293b] rounded-2xl overflow-hidden shadow-xl">
+                    <div className="p-4 border-b border-[#1e293b] flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-bold text-white">Architectural Evolution & Performance Delta Matrix</h3>
+                        <p className="text-xs text-slate-400">Direct dimension-by-dimension comparison between Legacy Baseline and Target Prescribed Architecture.</p>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-[#0f172a] border-b border-[#1e293b] text-slate-400 uppercase tracking-wider font-semibold">
+                            <th className="py-3 px-4">Architectural Dimension</th>
+                            <th className="py-3 px-4 text-rose-400">Legacy Baseline (Old)</th>
+                            <th className="py-3 px-4 text-cyan-400">Target Prescribed (New)</th>
+                            <th className="py-3 px-4 text-emerald-400">Improvement Delta</th>
+                            <th className="py-3 px-4">Impact</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-[#1e293b] text-slate-200">
+                          {matrix.map((row, idx) => (
+                            <tr key={idx} className="hover:bg-[#11192e] transition">
+                              <td className="py-3.5 px-4 font-bold text-white">{row.dimension}</td>
+                              <td className="py-3.5 px-4 font-mono text-rose-300/90">{row.legacy}</td>
+                              <td className="py-3.5 px-4 font-mono font-semibold text-cyan-300">{row.target}</td>
+                              <td className="py-3.5 px-4 font-mono font-bold text-emerald-400">
+                                <span className="flex items-center space-x-1">
+                                  <TrendingUp className="w-3.5 h-3.5" />
+                                  <span>{row.delta}</span>
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${row.impact === "Critical"
+                                      ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                                      : row.impact === "High"
+                                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                        : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                                    }`}
+                                >
+                                  {row.impact}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Mode 3: Side-by-Side Dual Diagrams */}
-              {evolutionView === "side_by_side" && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Mode 3: Side-by-Side Dual Diagrams */}
+                {evolutionView === "side_by_side" && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-[#0a0f1d] border border-rose-900/40 rounded-2xl p-4 shadow-xl space-y-3">
+                      <div className="flex items-center justify-between border-b border-[#1e293b] pb-2">
+                        <span className="text-xs font-bold text-rose-400 uppercase">Legacy Monolith Topology</span>
+                        <span className="text-[10px] font-mono text-slate-400">Single Central Database Bottleneck</span>
+                      </div>
+                      <MermaidViewer chart={oldArch?.mermaid_diagram || ""} title="Old Architecture (Legacy Monolith)" />
+                    </div>
+                    <div className="bg-[#0a0f1d] border border-cyan-500/40 rounded-2xl p-4 shadow-xl space-y-3">
+                      <div className="flex items-center justify-between border-b border-[#1e293b] pb-2">
+                        <span className="text-xs font-bold text-cyan-400 uppercase">Target Sovereign Mesh Topology</span>
+                        <span className="text-[10px] font-mono text-slate-400">Edge Gateway + Redis + mTLS + Core HSM</span>
+                      </div>
+                      <MermaidViewer chart={newArch?.mermaid_diagram || ""} title="New Architecture (Target Sovereign Hybrid)" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Mode 4: Old Monolith Diagram Only */}
+                {evolutionView === "old_diagram" && (
                   <div className="bg-[#0a0f1d] border border-rose-900/40 rounded-2xl p-4 shadow-xl space-y-3">
                     <div className="flex items-center justify-between border-b border-[#1e293b] pb-2">
-                      <span className="text-xs font-bold text-rose-400 uppercase">Legacy Monolith Topology</span>
-                      <span className="text-[10px] font-mono text-slate-400">Single Central Database Bottleneck</span>
+                      <span className="text-xs font-bold text-rose-400 uppercase">Legacy Monolith Topology (Baseline)</span>
+                      <span className="text-xs text-slate-400 font-mono">Synchronous tight coupling with single database SPOF</span>
                     </div>
                     <MermaidViewer chart={oldArch?.mermaid_diagram || ""} title="Old Architecture (Legacy Monolith)" />
                   </div>
+                )}
+
+                {/* Mode 5: New Target Diagram Only */}
+                {evolutionView === "new_diagram" && (
                   <div className="bg-[#0a0f1d] border border-cyan-500/40 rounded-2xl p-4 shadow-xl space-y-3">
                     <div className="flex items-center justify-between border-b border-[#1e293b] pb-2">
-                      <span className="text-xs font-bold text-cyan-400 uppercase">Target Sovereign Mesh Topology</span>
-                      <span className="text-[10px] font-mono text-slate-400">Edge Gateway + Redis + mTLS + Core HSM</span>
+                      <span className="text-xs font-bold text-cyan-400 uppercase">Target Sovereign Hybrid Topology (Prescribed)</span>
+                      <span className="text-xs text-slate-400 font-mono">Decoupled edge caching, Kafka event streaming & on-prem HSM enclave</span>
                     </div>
                     <MermaidViewer chart={newArch?.mermaid_diagram || ""} title="New Architecture (Target Sovereign Hybrid)" />
                   </div>
-                </div>
-              )}
-
-              {/* Mode 4: Old Monolith Diagram Only */}
-              {evolutionView === "old_diagram" && (
-                <div className="bg-[#0a0f1d] border border-rose-900/40 rounded-2xl p-4 shadow-xl space-y-3">
-                  <div className="flex items-center justify-between border-b border-[#1e293b] pb-2">
-                    <span className="text-xs font-bold text-rose-400 uppercase">Legacy Monolith Topology (Baseline)</span>
-                    <span className="text-xs text-slate-400 font-mono">Synchronous tight coupling with single database SPOF</span>
-                  </div>
-                  <MermaidViewer chart={oldArch?.mermaid_diagram || ""} title="Old Architecture (Legacy Monolith)" />
-                </div>
-              )}
-
-              {/* Mode 5: New Target Diagram Only */}
-              {evolutionView === "new_diagram" && (
-                <div className="bg-[#0a0f1d] border border-cyan-500/40 rounded-2xl p-4 shadow-xl space-y-3">
-                  <div className="flex items-center justify-between border-b border-[#1e293b] pb-2">
-                    <span className="text-xs font-bold text-cyan-400 uppercase">Target Sovereign Hybrid Topology (Prescribed)</span>
-                    <span className="text-xs text-slate-400 font-mono">Decoupled edge caching, Kafka event streaming & on-prem HSM enclave</span>
-                  </div>
-                  <MermaidViewer chart={newArch?.mermaid_diagram || ""} title="New Architecture (Target Sovereign Hybrid)" />
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )
           )}
 
           {/* TAB 2: RECOMMENDED TECH STACKS & TRADE-OFFS */}
@@ -889,7 +1072,7 @@ export default function ArchitecturePage() {
               </div>
               <div>
                 <h3 className="text-base font-bold text-white">Confirm & Formally Sign-Off Architecture</h3>
-                <p className="text-xs text-slate-400">Records executive architectural approval and marks ADRs as Accepted.</p>
+                <p className="text-xs text-slate-400">Adopt the target architecture as the single active system architecture.</p>
               </div>
             </div>
 
@@ -915,10 +1098,10 @@ export default function ArchitecturePage() {
               </div>
 
               <div className="p-3 rounded-xl bg-[#0f172a] border border-[#1e293b] text-[11px] text-slate-400 space-y-1">
-                <div className="font-semibold text-slate-300">Consequences of Confirmation:</div>
-                <div>• Advances project status to <strong className="text-emerald-400">Completed</strong>.</div>
+                <div className="font-semibold text-slate-300">Immediate Effect of Confirmation:</div>
+                <div>• Changes the target architecture to <strong className="text-emerald-400">THE ACTIVE ARCHITECTURE</strong>.</div>
                 <div>• Formally accepts all 4 Architecture Decision Records (ADRs).</div>
-                <div>• Locks target Sovereign Hybrid topology for engineering execution.</div>
+                <div>• Sets project status to <strong className="text-emerald-400">Completed</strong>.</div>
               </div>
             </div>
 
@@ -935,7 +1118,7 @@ export default function ArchitecturePage() {
                 className="px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-950/40 flex items-center space-x-1.5 transition active:scale-95 disabled:opacity-50"
               >
                 <Check className="w-4 h-4" />
-                <span>{actionInProgress ? "Recording Sign-Off..." : "Formally Confirm & Adopt Target Architecture"}</span>
+                <span>{actionInProgress ? "Recording Sign-Off..." : "Confirm & Adopt Architecture (The One)"}</span>
               </button>
             </div>
           </div>
