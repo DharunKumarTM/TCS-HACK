@@ -1,0 +1,27 @@
+TRANSCRIPT: SmartBank 2.0 Architectural Strategy & Infrastructure Alignment
+Date: October 14, 2026
+Attendees:
+- Marcus Vance (Cloud Solution Architect)
+- Rajesh Gupta (Enterprise Infrastructure Lead)
+- Kavita Krishnan (Chief Information Security Officer)
+- Vikram Malhotra (VP of Engineering)
+- Deepa Nair (Lead Regulatory & Compliance Officer)
+
+[00:03:15] Marcus Vance (Cloud Solution Architect):
+"From a scalability and operational cost standpoint, our recommendation is a cloud-native architecture deployed entirely on AWS multi-region using Managed Kubernetes (EKS), AWS Aurora Serverless PostgreSQL, and AWS SQS/EventBridge. This allows us to scale to 100,000 concurrent sessions on demand without paying for idle compute."
+
+[00:05:42] Rajesh Gupta (Enterprise Infrastructure Lead):
+"Hold on Marcus. Enterprise policy POL-INFRA-09 specifically states that all financial core ledger databases and transaction engines MUST be deployed on-premises in our Tier-IV private datacenter. We have existing hardware security modules (HSMs) and direct low-latency fiber to the clearinghouse. Moving core ledgers to public AWS violates our enterprise operating mandate."
+
+[00:08:10] Deepa Nair (Lead Regulatory & Compliance Officer):
+"Rajesh is right about the regulatory risk. Central Bank Circular 2026-B requires strict sovereign data residency. All primary customer personally identifiable information (PII), account balances, and ledger journals must reside within domestic national borders. Cross-border replication or public cloud multi-region setups that route through non-domestic regions are strictly prohibited."
+
+[00:11:30] Kavita Krishnan (Chief Information Security Officer):
+"I want to make our cryptographic baseline clear. Every API must enforce Mutual TLS (mTLS) with strict certificate rotation. Furthermore, we must integrate Hardware Security Modules (HSM) for digital signing of transactions. Any proposal that relies on shared public cloud keys without dedicated on-prem HSM integration will be rejected during security review."
+
+[00:14:05] Vikram Malhotra (VP of Engineering):
+"We need to balance this. We cannot achieve 99.99% availability and 100k concurrent users if we are tied to legacy monolithic mainframes without horizontal elasticity. Could we consider a hybrid architecture where edge gateways and read-heavy services run on an elastic container mesh while the core transaction settlement engine and sovereign data ledger remain in our secure private enclave?"
+
+[00:16:50] Marcus Vance (Cloud Solution Architect):
+"A hybrid architecture is feasible, but we will introduce cross-network latency between the cloud edge and on-prem ledger. That threatens our 2.0-second login SLA and sub-500ms payment settlement SLA unless we implement an intelligent distributed caching tier and asynchronous message queue."
+

@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: archmind-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: archmind_db
+      POSTGRES_USER: archmind
+      POSTGRES_PASSWORD: archmind_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U archmind -d archmind_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./archmind-ai/backend
+      dockerfile: Dockerfile
+    container_name: archmind-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=ArchMind AI - Evidence-Driven Agentic Software Architect
+      - APP_ENV=production
+      - PORT=8000
+      - HOST=0.0.0.0
+      - DATABASE_URL=postgresql+psycopg://archmind:archmind_secret@postgres:5432/archmind_db
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=gemini-2.0-flash
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./archmind-ai/backend:/app
+      - ./archmind-ai/sample_data:/sample_data
+
+  frontend:
+    build:
+      context: ./archmind-ai/frontend
+      dockerfile: Dockerfile
+    container_name: archmind-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+
